@@ -1,8 +1,13 @@
 import React from 'react';
 
 const Project = ({ apps, onOpenApp }) => {
-  // 1. Define the exact order of sections you want to display
-  const sections = ['Personal Project', 'Final Semester', 'Startup', 'Client Project'];
+  // 1. Define the exact step-by-step order of sections to display
+  const primarySections = [
+    'Startup',
+    'Client Project',
+    'Final Semester',
+    'Personal Project'
+  ];
 
   // 2. Group the apps coming from the backend by their project_type
   const groupedApps = apps.reduce((groups, app) => {
@@ -11,6 +16,12 @@ const Project = ({ apps, onOpenApp }) => {
     groups[type].push(app);
     return groups;
   }, {});
+
+  // 3. Keep any extra categories (like Games) at the end so nothing gets hidden
+  const extraSections = Object.keys(groupedApps).filter(
+    type => !primarySections.includes(type)
+  );
+  const sections = [...primarySections, ...extraSections];
 
   return (
     <div className="flex flex-col h-full bg-white text-black font-sans">

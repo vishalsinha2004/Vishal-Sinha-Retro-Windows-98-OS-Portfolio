@@ -9,96 +9,84 @@ import TicTacToe from './TicTacToe';
 import Snake from './Snake';
 import ProblemSolver from './ProblemSolver';
 import { useSound } from '../hooks/useSound';
-import ContextMenu from './ContextMenu'; // <-- NEW IMPORT
+import ContextMenu from './ContextMenu';
 import CommandPrompt from './CommandPrompt';
-import MyComputer from './MyComputer'; //
+import MyComputer from './MyComputer';
 import RecycleBin from './RecycleBin';
 import NetworkNeighborhood from './NetworkNeighborhood';
-import InternetExplorer from './InternetExplorer'; // <-- ADD THIS IMPORT
-import VoiceAssistant from './VoiceAssistant'; // <-- ADD/VERIFY IMPORT
-import SystemMonitor from './SystemMonitor'; // <-- ADD THIS
-import Notepad from './Notepad'; // <-- ADD THIS
-import Paint from './Paint'; // <-- ADD THIS
-import Minesweeper from './Minesweeper'; // <-- ADD THIS
+import InternetExplorer from './InternetExplorer';
+import VoiceAssistant from './VoiceAssistant';
+import SystemMonitor from './SystemMonitor';
+import Notepad from './Notepad';
+import Paint from './Paint';
+import Minesweeper from './Minesweeper';
 import { showSystemDialog } from './SystemDialog';
-// --- Dynamic System OS Component ---
-const SystemOSView = ({ apiUrl }) => {
-  const [sysInfo, setSysInfo] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    fetch(`${apiUrl}/system-os/`)
-      .then((res) => {
-        if (!res.ok) throw new Error('API Endpoint not found');
-        return res.json();
-      })
-      .then((data) => {
-        setSysInfo(Array.isArray(data) ? data : [data]);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("System OS API Error:", err);
-        setError(err.message);
-        setLoading(false);
-      });
-  }, [apiUrl]);
-
-  if (loading) return <div className="h-full flex items-center justify-center font-mono text-os-text">Loading System Information...</div>;
-
-  if (error || sysInfo.length === 0) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center font-sans text-os-text p-8 text-center bg-os-white shadow-retro-inset m-2">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="w-16 h-16 mb-4"><rect x="2" y="3" width="20" height="14"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
-        <p className="font-bold">System Information Unavailable</p>
-        <p className="text-xs mt-2">Cannot connect to the local server.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="h-full bg-os-white p-2 overflow-y-auto custom-scrollbar shadow-retro-inset m-1">
-      <div className="flex flex-col gap-4">
-        {sysInfo.map((item, index) => (
-          <div key={index} className="bg-os-gray border border-os-dark-gray p-4 flex flex-col md:flex-row items-start gap-4">
-            {(item.icon || item.image) && (
-              <div className="w-16 h-16 flex-shrink-0 bg-os-white p-2 border border-os-dark-gray shadow-retro-inset">
-                <img src={item.icon || item.image} alt="Icon" className="w-full h-full object-contain" />
-              </div>
-            )}
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2 w-full">
-              {Object.entries(item).map(([key, value]) => {
-                const hiddenKeys = ['id', 'icon', 'image', 'created_at', 'updated_at'];
-                if (hiddenKeys.includes(key.toLowerCase())) return null;
-                return (
-                  <div key={key} className="flex gap-2 bg-os-white p-2 border border-os-dark-gray shadow-retro-inset items-start">
-                    <span className="text-xs font-bold whitespace-nowrap">{key.replace(/_/g, ' ')}:</span>
-                    <span className="text-xs font-sans whitespace-pre-wrap">{value}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
+const desktopRepoCache = new Map();
 
 const getRepoDetails = (url) => {
-  if (!url) return null;
-  const matches = url.match(/github\.com\/([^/]+)\/([^/]+)/);
-  if (matches && matches.length >= 3) return { owner: matches[1], repo: matches[2].replace('.git', '') };
-  return null;
+  if (!url || typeof url !== 'string') return null;
+  try {
+    const urlObj = new URL(url.trim());
+    if (!urlObj.hostname.includes('github.com')) return null;
+    const parts = urlObj.pathname.split('/').filter(Boolean);
+    if (parts.length >= 2) {
+      return {
+        owner: parts[0],
+        repo: parts[1].replace(/\.git$/i, ''),
+      };
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+};
+
+const fetchRepoContentsCached = async (details) => {
+  if (!details) return [];
+  const cacheKey = `${details.owner}/${details.repo}`.toLowerCase();
+
+  if (desktopRepoCache.has(cacheKey)) {
+    return desktopRepoCache.get(cacheKey);
+  }
+
+  const fetchPromise = (async () => {
+    try {
+      const headers = { Accept: 'application/vnd.github.v3+json' };
+      if (import.meta.env.VITE_GITHUB_TOKEN) {
+        headers.Authorization = `token ${import.meta.env.VITE_GITHUB_TOKEN}`;
+      }
+
+      const res = await fetch(
+        `https://api.github.com/repos/${details.owner}/${details.repo}/contents`,
+        { headers }
+      );
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    } catch (e) {
+      return [];
+    }
+  })();
+
+  desktopRepoCache.set(cacheKey, fetchPromise);
+  const result = await fetchPromise;
+  desktopRepoCache.set(cacheKey, result);
+  return result;
 };
 
 const parseTechStack = (stackStr) => {
   if (!stackStr) return [];
-  const cleaned = stackStr.replace(/Frontend=/gi, '').replace(/Backend=/gi, ',').replace(/Database=/gi, ',');
-  return cleaned.split(',').map(t => t.trim()).filter(t => t.length > 0);
+  const cleaned = stackStr
+    .replace(/Frontend=/gi, '')
+    .replace(/Backend=/gi, ',')
+    .replace(/Database=/gi, ',');
+  return cleaned
+    .split(',')
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
 };
 
-// --- MAIN WINDOW COMPONENT ---
 const Window = ({
   app,
   isActive,
@@ -117,7 +105,7 @@ const Window = ({
   isCrtMode,
   setIsCrtMode,
   onCloseApp,
-  openWindowCount // <-- ADD THIS PROP
+  openWindowCount,
 }) => {
   const nodeRef = useRef(null);
   const { playSound } = useSound();
@@ -127,7 +115,6 @@ const Window = ({
   const [githubLoading, setGithubLoading] = useState(false);
   const [githubError, setGithubError] = useState(null);
 
-  // -- Context Menu State for Title Bar --
   const [titleMenu, setTitleMenu] = useState({ visible: false, x: 0, y: 0 });
   const [activeMenu, setActiveMenu] = useState(null);
 
@@ -145,59 +132,77 @@ const Window = ({
   };
 
   useEffect(() => {
-    const sysApps = ['settings', 'system-os', 'about-us', 'projects-folder', 'games-folder', 'file-explorer', 'resume', 'tic-tac-toe', 'problem-solver'];
-    if (sysApps.includes(app.id) || app.name.toLowerCase() === 'about vishal') return;
+    const sysApps = [
+      'settings', 'system-os', 'about-us', 'projects-folder', 'games-folder',
+      'file-explorer', 'resume', 'tic-tac-toe', 'problem-solver', 'snake',
+      'minesweeper', 'paint', 'notepad', 'system-monitor', 'ie', 'network',
+      'recycle-bin', 'recycle', 'luma-ai',
+    ];
+    if (sysApps.includes(app.id) || app.name?.toLowerCase() === 'about vishal') return;
+
+    const frontDetails = getRepoDetails(app.frontend_repo);
+    const backDetails = getRepoDetails(app.backend_repo);
+    if (!frontDetails && !backDetails) return;
+
+    let isMounted = true;
 
     const fetchFiles = async () => {
-      const frontDetails = getRepoDetails(app.frontend_repo);
-      const backDetails = getRepoDetails(app.backend_repo);
-      if (!frontDetails && !backDetails) return;
-
       setGithubLoading(true);
+      setGithubError(null);
+
       try {
-        // Updated fetch function: Catches 404s gracefully without breaking Promise.all
-        const fetchRepo = async (details) => {
-          if (!details) return [];
-          try {
-            const res = await fetch(`https://api.github.com/repos/${details.owner}/${details.repo}/contents`);
-            if (!res.ok) {
-              console.warn(`Could not fetch ${details.repo}. It may be private or empty.`);
-              return []; // Return empty array instead of throwing error
-            }
-            return await res.json();
-          } catch (e) {
-            return [];
+        const sameRepo =
+          frontDetails &&
+          backDetails &&
+          frontDetails.owner.toLowerCase() === backDetails.owner.toLowerCase() &&
+          frontDetails.repo.toLowerCase() === backDetails.repo.toLowerCase();
+
+        let frontData = [];
+        let backData = [];
+
+        if (sameRepo) {
+          frontData = await fetchRepoContentsCached(frontDetails);
+          backData = frontData;
+        } else {
+          [frontData, backData] = await Promise.all([
+            fetchRepoContentsCached(frontDetails),
+            fetchRepoContentsCached(backDetails),
+          ]);
+        }
+
+        if (isMounted) {
+          setRepoFiles({ frontend: frontData, backend: backData });
+          if (frontDetails && (!backDetails || frontData.length > 0)) {
+            setActiveTab('frontend');
+          } else if (backDetails) {
+            setActiveTab('backend');
           }
-        };
-
-        const [frontData, backData] = await Promise.all([fetchRepo(frontDetails), fetchRepo(backDetails)]);
-
-        setRepoFiles({
-          frontend: Array.isArray(frontData) ? frontData : [],
-          backend: Array.isArray(backData) ? backData : []
-        });
-
-        if (frontDetails && !backDetails) setActiveTab('frontend');
-        if (!frontDetails && backDetails) setActiveTab('backend');
+        }
       } catch (err) {
-        setGithubError("Could not load repository files.");
+        if (isMounted) setGithubError('Could not load repository files.');
       } finally {
-        setGithubLoading(false);
+        if (isMounted) setGithubLoading(false);
       }
     };
+
     fetchFiles();
+
+    return () => {
+      isMounted = false;
+    };
   }, [app.id, app.frontend_repo, app.backend_repo, app.name]);
 
   const renderFileList = (files) => {
     if (githubLoading) return <div className="text-os-text text-xs p-2">Loading...</div>;
     if (githubError) return <div className="text-os-text text-xs p-2">{githubError}</div>;
 
-    // Updated empty state message
-    if (files.length === 0) return (
-      <div className="text-os-dark-gray text-xs p-2 italic bg-white shadow-retro-inset border border-os-dark-gray h-[150px] flex items-center justify-center text-center px-4">
-        Cannot display files.<br />This repository is either private, empty, or unreachable.
-      </div>
-    );
+    if (!files || files.length === 0) {
+      return (
+        <div className="text-os-dark-gray text-xs p-2 italic bg-white shadow-retro-inset border border-os-dark-gray h-[150px] flex items-center justify-center text-center px-4">
+          Cannot display files.<br />This repository is either private, empty, or unreachable.
+        </div>
+      );
+    }
 
     return (
       <ul className="bg-os-white shadow-retro-inset p-1 h-[150px] overflow-y-auto custom-scrollbar border border-os-dark-gray">
@@ -212,10 +217,7 @@ const Window = ({
   };
 
   const renderAppContent = () => {
-    // Inside renderAppContent():
-    if (app.id === 'recycle-bin' || app.id === 'recycle') return <RecycleBin fsApi={fsApi} onOpenApp={onOpenApp} />; // <--- UPDATE
-
-    // ADD THIS LINE:
+    if (app.id === 'recycle-bin' || app.id === 'recycle') return <RecycleBin fsApi={fsApi} onOpenApp={onOpenApp} />;
     if (app.id === 'settings') {
       return (
         <Settings
@@ -228,15 +230,13 @@ const Window = ({
     }
     if (app.id === 'network') return <NetworkNeighborhood />;
     if (app.id === 'ie') return <InternetExplorer initialUrl={app.live_link} />;
-    if (app.id === 'luma-ai') return <VoiceAssistant />; // <-- ADD THIS LINE   
-    if (app.id === 'system-monitor') return <SystemMonitor openWindowCount={openWindowCount} />; // <-- ADD THIS LINE 
-    if (app.id === 'notepad') return <Notepad />; // <-- ADD THIS LINE
-    if (app.id === 'paint') return <Paint />; // <-- ADD THIS LINE
-    if (app.id === 'minesweeper') return <Minesweeper />; // <-- ADD THIS LINE
+    if (app.id === 'luma-ai') return <VoiceAssistant />;
+    if (app.id === 'system-monitor') return <SystemMonitor openWindowCount={openWindowCount} />;
+    if (app.id === 'notepad') return <Notepad />;
+    if (app.id === 'paint') return <Paint />;
+    if (app.id === 'minesweeper') return <Minesweeper />;
     if (app.id === 'snake') return <Snake />;
-    if (app.id === 'system-os') {
-      return <MyComputer onOpenApp={onOpenApp} />;
-    }
+    if (app.id === 'system-os') return <MyComputer onOpenApp={onOpenApp} />;
 
     if (app.id === 'about-us' || app.name.toLowerCase() === 'about vishal') {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
@@ -258,17 +258,16 @@ const Window = ({
       );
     }
     if (app.id === 'games-folder') {
-      const gameApps = systemApps.filter(a => a.isGame);
+      const gameApps = systemApps.filter((a) => a.isGame);
       return <ProjectPage apps={gameApps} onOpenApp={onOpenApp} />;
     }
 
     if (app.id === 'projects-folder') {
-      // ONLY grabs items fetched from your database
-      const projectApps = systemApps.filter(a => a.isProject);
+      const projectApps = systemApps.filter((a) => a.isProject);
       return <ProjectPage apps={projectApps} onOpenApp={onOpenApp} />;
     }
 
-    if (app.id === 'file-explorer') return <FileExplorer fsApi={fsApi} systemApps={systemApps} onOpenApp={onOpenApp} />; // <--- UPDATE
+    if (app.id === 'file-explorer') return <FileExplorer fsApi={fsApi} systemApps={systemApps} onOpenApp={onOpenApp} />;
 
     const techTags = parseTechStack(app.tech_stack);
 
@@ -294,7 +293,7 @@ const Window = ({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
           <div className="lg:col-span-2 bg-os-white shadow-retro-inset p-4 border border-os-dark-gray">
             <h3 className="font-bold border-b border-os-dark-gray mb-2 pb-1">Description</h3>
-            <p className="text-sm">{app.description || "No description provided."}</p>
+            <p className="text-sm">{app.description || 'No description provided.'}</p>
           </div>
           <div className="lg:col-span-1 bg-os-white shadow-retro-inset p-4 border border-os-dark-gray">
             <h3 className="font-bold border-b border-os-dark-gray mb-2 pb-1">Properties</h3>
@@ -318,14 +317,77 @@ const Window = ({
         )}
 
         {app.live_link ? (
-          <div className="flex-1 min-h-[400px]">
-            {/* Replace static iframe with authentic IE interface */}
+          <section className="flex-1 min-h-[300px] border border-os-dark-gray shrink-0 flex flex-col" aria-label="Live Preview">
             <InternetExplorer initialUrl={app.live_link} />
-          </div>
+          </section>
         ) : (
-          <div className="flex-1 flex items-center justify-center bg-os-white shadow-retro-inset border border-os-dark-gray min-h-[200px]">
-            <span className="text-os-dark-gray text-sm">Cannot connect to remote server.</span>
-          </div>
+          <section
+            className="flex-1 min-h-[220px] bg-[#808080] shadow-retro-inset border border-os-dark-gray p-4 flex items-center justify-center shrink-0"
+            aria-label="Offline Project Notice"
+          >
+            <div className="bg-os-gray shadow-retro-outset border border-os-white w-full max-w-[420px] p-1 text-black font-sans">
+              <div className="bg-[#000080] text-white font-bold text-xs px-2 py-1 flex items-center justify-between select-none">
+                <div className="flex items-center gap-1.5 truncate">
+                  <span>🌐</span>
+                  <span className="truncate">Deployment Status — {app.name}</span>
+                </div>
+                <span className="bg-os-gray text-black px-1.5 text-[10px] leading-none shadow-retro-outset font-bold">
+                  !
+                </span>
+              </div>
+
+              <div className="p-4 flex flex-col gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-os-white shadow-retro-inset border border-os-dark-gray flex items-center justify-center text-xl shrink-0">
+                    🔌
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-sm text-black leading-tight">
+                      This Project Is Not Hosted Live
+                    </h3>
+                    <p className="text-xs text-os-dark-gray mt-1 leading-snug">
+                      A live web preview is not deployed for this build. You can inspect the repository files above or open the source code links below.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-os-white shadow-retro-inset border border-os-dark-gray px-2 py-1 text-xs font-mono text-black flex items-center justify-between">
+                  <span>STATUS: OFFLINE_BUILD</span>
+                  <span className="text-red-700 font-bold">PORT: N/A</span>
+                </div>
+
+                <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-os-dark-gray">
+                  {app.frontend_repo && (
+                    <a
+                      href={app.frontend_repo}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => playSound('click')}
+                      className="retro-btn text-xs px-3 py-1 font-bold no-underline text-black"
+                    >
+                      Frontend Code
+                    </a>
+                  )}
+                  {app.backend_repo && (
+                    <a
+                      href={app.backend_repo}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => playSound('click')}
+                      className="retro-btn text-xs px-3 py-1 font-bold no-underline text-black"
+                    >
+                      Backend Code
+                    </a>
+                  )}
+                  {!app.frontend_repo && !app.backend_repo && (
+                    <span className="retro-btn text-xs px-3 py-1 opacity-60 text-os-dark-gray cursor-default">
+                      Source Private / Local
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
         )}
       </div>
     );
@@ -350,7 +412,7 @@ const Window = ({
           }}
           style={{
             zIndex: app.zIndex || 70,
-            display: app.isMinimized ? 'none' : 'flex'
+            display: app.isMinimized ? 'none' : 'flex',
           }}
           className={`absolute flex flex-col retro-window shadow-retro-outset border border-os-dark-gray bg-os-gray
         ${app.isMaximized
@@ -358,7 +420,6 @@ const Window = ({
               : 'w-[95vw] md:w-[800px] h-[85vh] md:h-[600px] max-w-[100vw] max-h-[calc(100vh-32px)]'
             }`}
         >
-          {/* TITLE BAR WITH RIGHT-CLICK HANDLER */}
           <div
             className={`retro-title-bar cursor-move select-none flex justify-between items-center px-1 font-dialog font-bold text-sm
               ${isActive ? 'bg-[#000080] text-white' : 'bg-[#808080] text-[#c0c0c0]'}`}
@@ -394,15 +455,11 @@ const Window = ({
             </div>
           </div>
 
-          {/* INTERACTIVE MENU BAR */}
           <div className="retro-menu-bar border-b border-os-dark-gray select-none bg-os-gray flex gap-2 px-1 text-sm relative z-50 shrink-0">
-
-            {/* Invisible overlay to close dropdowns when clicking outside */}
             {activeMenu && (
               <div className="fixed inset-0 z-40" onClick={closeMenu}></div>
             )}
 
-            {/* FILE MENU */}
             <div className="relative z-50">
               <span
                 className={`cursor-pointer px-2 py-[1px] inline-block ${activeMenu === 'file' ? 'bg-blue-900 text-white' : 'hover:bg-blue-900 hover:text-white'}`}
@@ -417,7 +474,6 @@ const Window = ({
               )}
             </div>
 
-            {/* EDIT MENU */}
             <div className="relative z-50">
               <span
                 className={`cursor-pointer px-2 py-[1px] inline-block ${activeMenu === 'edit' ? 'bg-blue-900 text-white' : 'hover:bg-blue-900 hover:text-white'}`}
@@ -434,7 +490,6 @@ const Window = ({
               )}
             </div>
 
-            {/* VIEW MENU */}
             <div className="relative z-50">
               <span
                 className={`cursor-pointer px-2 py-[1px] inline-block ${activeMenu === 'view' ? 'bg-blue-900 text-white' : 'hover:bg-blue-900 hover:text-white'}`}
@@ -454,7 +509,6 @@ const Window = ({
               )}
             </div>
 
-            {/* HELP MENU */}
             <div className="relative z-50">
               <span
                 className={`cursor-pointer px-2 py-[1px] inline-block ${activeMenu === 'help' ? 'bg-blue-900 text-white' : 'hover:bg-blue-900 hover:text-white'}`}
@@ -466,11 +520,11 @@ const Window = ({
                 <div className="absolute top-full left-0 bg-os-gray shadow-retro-outset border border-os-white flex flex-col min-w-[200px] text-black py-1">
                   <div className="px-3 py-1 hover:bg-os-navy hover:text-white cursor-pointer" onClick={() => handleMenuAction(() => onOpenApp('about-us'))}>About Vishal OS</div>
                   <div className="px-3 py-1 hover:bg-os-navy hover:text-white cursor-pointer" onClick={() => handleMenuAction(() => {
-                    showSystemDialog({ 
-                      type: 'info', 
-                      title: 'Help', 
-                      message: `Help topics for ${app.name} are currently unavailable.`, 
-                      buttons: ['OK'] 
+                    showSystemDialog({
+                      type: 'info',
+                      title: 'Help',
+                      message: `Help topics for ${app.name} are currently unavailable.`,
+                      buttons: ['OK'],
                     });
                   })}>Help Topics</div>
                 </div>
@@ -489,7 +543,6 @@ const Window = ({
         </div>
       </Draggable>
 
-      {/* SYSTEM CONTEXT MENU FOR TITLE BAR */}
       <ContextMenu
         visible={titleMenu.visible}
         x={titleMenu.x}
@@ -502,7 +555,7 @@ const Window = ({
           { label: 'Minimize', action: onMinimize },
           { label: 'Maximize', disabled: app.isMaximized, action: onToggleMaximize },
           { type: 'separator' },
-          { label: 'Close\tAlt+F4', action: onClose }
+          { label: 'Close\tAlt+F4', action: onClose },
         ]}
       />
     </>

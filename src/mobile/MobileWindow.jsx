@@ -18,19 +18,77 @@ import { showSystemDialog } from '../components/SystemDialog';
 import MobileAboutMe from './MobileAboutMe';
 import MobileResume from './MobileResume';
 import MobileProjectPage from './MobileProjectPage';
+import { folderIcon, notepadIcon } from '../utils/icons';
 
-// Helpers to parse GitHub data for dynamic projects
+// In-memory cache so GitHub repos (and 404s) are never fetched repeatedly
+const repoCache = new Map();
+
+// Robust parsing for GitHub URLs
 const getRepoDetails = (url) => {
-  if (!url) return null;
-  const matches = url.match(/github\.com\/([^/]+)\/([^/]+)/);
-  if (matches && matches.length >= 3) return { owner: matches[1], repo: matches[2].replace('.git', '') };
-  return null;
+  if (!url || typeof url !== 'string') return null;
+  try {
+    const urlObj = new URL(url.trim());
+    if (!urlObj.hostname.includes('github.com')) return null;
+    const parts = urlObj.pathname.split('/').filter(Boolean);
+    if (parts.length >= 2) {
+      return {
+        owner: parts[0],
+        repo: parts[1].replace(/\.git$/i, ''),
+      };
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+};
+
+const fetchRepoContentsCached = async (details) => {
+  if (!details) return [];
+  const cacheKey = `${details.owner}/${details.repo}`.toLowerCase();
+
+  if (repoCache.has(cacheKey)) {
+    return repoCache.get(cacheKey);
+  }
+
+  const fetchPromise = (async () => {
+    try {
+      const headers = { Accept: 'application/vnd.github.v3+json' };
+      if (import.meta.env.VITE_GITHUB_TOKEN) {
+        headers.Authorization = `token ${import.meta.env.VITE_GITHUB_TOKEN}`;
+      }
+
+      const res = await fetch(
+        `https://api.github.com/repos/${details.owner}/${details.repo}/contents`,
+        { headers }
+      );
+
+      if (!res.ok) {
+        return [];
+      }
+
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    } catch (e) {
+      return [];
+    }
+  })();
+
+  repoCache.set(cacheKey, fetchPromise);
+  const result = await fetchPromise;
+  repoCache.set(cacheKey, result);
+  return result;
 };
 
 const parseTechStack = (stackStr) => {
   if (!stackStr) return [];
-  const cleaned = stackStr.replace(/Frontend=/gi, '').replace(/Backend=/gi, ',').replace(/Database=/gi, ',');
-  return cleaned.split(',').map(t => t.trim()).filter(t => t.length > 0);
+  const cleaned = stackStr
+    .replace(/Frontend=/gi, '')
+    .replace(/Backend=/gi, ',')
+    .replace(/Database=/gi, ',');
+  return cleaned
+    .split(',')
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
 };
 
 const MobileWindow = ({
@@ -47,7 +105,7 @@ const MobileWindow = ({
   isCrtMode,
   setIsCrtMode,
   onCloseApp,
-  openWindowCount
+  openWindowCount,
 }) => {
   const { playSound } = useSound();
 
@@ -55,8 +113,6 @@ const MobileWindow = ({
   const [repoFiles, setRepoFiles] = useState({ frontend: [], backend: [] });
   const [githubLoading, setGithubLoading] = useState(false);
   const [githubError, setGithubError] = useState(null);
-  
-  // Mobile touch menu state
   const [activeMenu, setActiveMenu] = useState(null);
 
   const closeMenu = () => setActiveMenu(null);
@@ -66,73 +122,114 @@ const MobileWindow = ({
     closeMenu();
   };
 
+  // 1. Separate effect strictly for document title so focusing a window never re-fetches GitHub
   useEffect(() => {
-    // --- SEO ENHANCEMENT: Update document title dynamically based on active mobile app ---
-    if (isActive) {
+    if (isActive && app?.name) {
       document.title = `${app.name} | Vishal OS`;
     }
+  }, [isActive, app?.name]);
 
-    // --- CRITICAL FIX: Expanded sysApps to prevent GitHub API calls for local tools/games ---
+  // 2. Fetch GitHub files ONLY once per app/repo change
+  useEffect(() => {
     const sysApps = [
-      'settings', 'system-os', 'about-us', 'projects-folder', 'games-folder', 
-      'file-explorer', 'resume', 'tic-tac-toe', 'problem-solver', 'snake', 
-      'minesweeper', 'paint', 'notepad', 'system-monitor', 'ie', 'network', 'recycle-bin'
+      'settings', 'system-os', 'about-us', 'projects-folder', 'games-folder',
+      'file-explorer', 'resume', 'tic-tac-toe', 'problem-solver', 'snake',
+      'minesweeper', 'paint', 'notepad', 'system-monitor', 'ie', 'network',
+      'recycle-bin', 'recycle', 'luma-ai',
     ];
-    
-    if (sysApps.includes(app.id) || app.name.toLowerCase() === 'about vishal') return;
+
+    if (sysApps.includes(app.id) || app.name?.toLowerCase() === 'about vishal') {
+      return;
+    }
+
+    const frontDetails = getRepoDetails(app.frontend_repo);
+    const backDetails = getRepoDetails(app.backend_repo);
+    if (!frontDetails && !backDetails) return;
+
+    let isMounted = true;
 
     const fetchFiles = async () => {
-      const frontDetails = getRepoDetails(app.frontend_repo);
-      const backDetails = getRepoDetails(app.backend_repo);
-      if (!frontDetails && !backDetails) return;
-
       setGithubLoading(true);
+      setGithubError(null);
+
       try {
-        const fetchRepo = async (details) => {
-          if (!details) return [];
-          try {
-            const res = await fetch(`https://api.github.com/repos/${details.owner}/${details.repo}/contents`);
-            if (!res.ok) return []; 
-            return await res.json();
-          } catch (e) {
-            return [];
+        const sameRepo =
+          frontDetails &&
+          backDetails &&
+          frontDetails.owner.toLowerCase() === backDetails.owner.toLowerCase() &&
+          frontDetails.repo.toLowerCase() === backDetails.repo.toLowerCase();
+
+        let frontData = [];
+        let backData = [];
+
+        if (sameRepo) {
+          frontData = await fetchRepoContentsCached(frontDetails);
+          backData = frontData;
+        } else {
+          [frontData, backData] = await Promise.all([
+            fetchRepoContentsCached(frontDetails),
+            fetchRepoContentsCached(backDetails),
+          ]);
+        }
+
+        if (isMounted) {
+          setRepoFiles({ frontend: frontData, backend: backData });
+          if (frontDetails && (!backDetails || frontData.length > 0)) {
+            setActiveTab('frontend');
+          } else if (backDetails) {
+            setActiveTab('backend');
           }
-        };
-
-        const [frontData, backData] = await Promise.all([fetchRepo(frontDetails), fetchRepo(backDetails)]);
-
-        setRepoFiles({
-          frontend: Array.isArray(frontData) ? frontData : [],
-          backend: Array.isArray(backData) ? backData : []
-        });
-
-        if (frontDetails && !backDetails) setActiveTab('frontend');
-        if (!frontDetails && backDetails) setActiveTab('backend');
+        }
       } catch (err) {
-        setGithubError("Could not load repository files.");
+        if (isMounted) setGithubError('Could not load repository files.');
       } finally {
-        setGithubLoading(false);
+        if (isMounted) setGithubLoading(false);
       }
     };
+
     fetchFiles();
-  }, [app.id, app.frontend_repo, app.backend_repo, app.name, isActive]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [app.id, app.frontend_repo, app.backend_repo, app.name]);
 
   const renderFileList = (files) => {
-    if (githubLoading) return <div className="text-os-text text-xs p-2">Loading...</div>;
-    if (githubError) return <div className="text-os-text text-xs p-2">{githubError}</div>;
+    if (githubLoading) return <div className="text-os-text text-xs p-2">Loading repository files...</div>;
+    if (githubError) return <div className="text-os-text text-xs p-2 text-red-600">{githubError}</div>;
 
-    if (files.length === 0) return (
-      <div className="text-os-dark-gray text-xs p-2 italic bg-white shadow-retro-inset border border-os-dark-gray h-[150px] flex items-center justify-center text-center px-4">
-        Cannot display files.<br />Repository may be private or empty.
-      </div>
-    );
+    if (!files || files.length === 0) {
+      return (
+        <div className="text-os-dark-gray text-xs p-2 italic bg-white shadow-retro-inset border border-os-dark-gray h-[150px] flex items-center justify-center text-center px-4">
+          Cannot display files.<br />Repository may be private, renamed, or empty.
+        </div>
+      );
+    }
+
+    const sortedFiles = [...files].sort((a, b) => {
+      if (a.type === 'dir' && b.type !== 'dir') return -1;
+      if (a.type !== 'dir' && b.type === 'dir') return 1;
+      return a.name.localeCompare(b.name);
+    });
 
     return (
       <ul className="bg-os-white shadow-retro-inset p-1 h-[150px] overflow-y-auto custom-scrollbar border border-os-dark-gray">
-        {files.map((file) => (
-          <li key={file.sha} className="flex items-center gap-2 text-xs font-sans text-os-text hover:bg-os-navy hover:text-os-white px-1">
-            <span>{file.type === 'dir' ? '📁' : '📄'}</span>
-            <a href={file.html_url} target="_blank" rel="noopener noreferrer" className="truncate flex-1">{file.name}</a>
+        {sortedFiles.map((file) => (
+          <li
+            key={file.sha}
+            className="flex items-center gap-2 text-xs font-sans text-os-text hover:bg-os-navy hover:text-os-white px-1 py-0.5 cursor-pointer"
+            onClick={() => {
+              playSound('click');
+              window.open(file.html_url, '_blank');
+            }}
+          >
+            <img
+              src={file.type === 'dir' ? folderIcon : notepadIcon}
+              alt={file.type}
+              className="w-4 h-4 object-contain shrink-0"
+              style={{ imageRendering: 'pixelated' }}
+            />
+            <span className="truncate flex-1">{file.name}</span>
           </li>
         ))}
       </ul>
@@ -150,9 +247,8 @@ const MobileWindow = ({
     if (app.id === 'paint') return <MobilePaint />;
     if (app.id === 'minesweeper') return <MobileMinesweeper />;
     if (app.id === 'snake') return <MobileSnake />;
-    
     if (app.id === 'system-os') return <MobileMyComputer onOpenApp={onOpenApp} />;
-    
+
     if (app.id === 'about-us' || app.name.toLowerCase() === 'about vishal') {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
       return <MobileAboutMe apiUrl={apiUrl} />;
@@ -163,14 +259,14 @@ const MobileWindow = ({
     if (app.id === 'problem-solver' || app.name.toLowerCase() === 'ms-dos prompt') {
       return <MobileCommandPrompt onOpenApp={onOpenApp} onClose={onClose} systemApps={systemApps} fsApi={fsApi} />;
     }
-    
+
     if (app.id === 'games-folder') {
-      const gameApps = systemApps.filter(a => a.isGame);
+      const gameApps = systemApps.filter((a) => a.isGame);
       return <MobileProjectPage apps={gameApps} onOpenApp={onOpenApp} />;
     }
 
     if (app.id === 'projects-folder') {
-      const projectApps = systemApps.filter(a => a.isProject);
+      const projectApps = systemApps.filter((a) => a.isProject);
       return <MobileProjectPage apps={projectApps} onOpenApp={onOpenApp} />;
     }
 
@@ -178,18 +274,17 @@ const MobileWindow = ({
 
     const techTags = parseTechStack(app.tech_stack);
 
-    // --- DYNAMIC PROJECT / APP VIEW ---
     return (
       <article className="flex flex-col flex-1 min-h-0 w-full h-full bg-os-gray text-os-text p-2 overflow-y-auto custom-scrollbar font-sans relative">
         
-        {/* NEW BACK BUTTON TO RETURN TO PROJECT MENU */}
+        {/* BACK BUTTON TO RETURN TO PROJECT MENU */}
         <div className="flex gap-2 mb-3 shrink-0">
-          <button 
-            onClick={(e) => { 
+          <button
+            onClick={(e) => {
               e.stopPropagation();
-              playSound('click'); 
-              onClose(); // Closes this project window
-              onOpenApp(app.isGame ? 'games-folder' : 'projects-folder'); // Refocuses the menu
+              playSound('click');
+              onClose();
+              onOpenApp(app.isGame ? 'games-folder' : 'projects-folder');
             }}
             className="retro-btn px-3 py-1.5 text-xs font-bold flex items-center gap-2 shadow-retro-outset active:shadow-retro-inset bg-os-gray text-black"
           >
@@ -217,7 +312,7 @@ const MobileWindow = ({
         <section className="flex flex-col gap-3 mb-4 shrink-0">
           <div className="bg-os-white shadow-retro-inset p-3 border border-os-dark-gray">
             <h2 className="font-bold border-b border-os-dark-gray mb-2 pb-1 text-sm">Description</h2>
-            <p className="text-xs">{app.description || "No description provided."}</p>
+            <p className="text-xs">{app.description || 'No description provided.'}</p>
           </div>
           <div className="bg-os-white shadow-retro-inset p-3 border border-os-dark-gray">
             <h2 className="font-bold border-b border-os-dark-gray mb-2 pb-1 text-sm">Properties</h2>
@@ -241,20 +336,84 @@ const MobileWindow = ({
         )}
 
         {app.live_link ? (
-          <section className="flex-1 min-h-[300px] border border-os-dark-gray shrink-0" aria-label="Live Preview">
+          <section className="flex-1 min-h-[300px] border border-os-dark-gray shrink-0 flex flex-col" aria-label="Live Preview">
             <InternetExplorer initialUrl={app.live_link} />
           </section>
         ) : (
-          <div className="flex-1 flex items-center justify-center bg-os-white shadow-retro-inset border border-os-dark-gray min-h-[150px] shrink-0">
-            <span className="text-os-dark-gray text-xs">Cannot connect to remote server.</span>
-          </div>
+          <section
+            className="flex-1 min-h-[220px] bg-[#808080] shadow-retro-inset border border-os-dark-gray p-3 flex items-center justify-center shrink-0"
+            aria-label="Offline Project Notice"
+          >
+            <div className="bg-os-gray shadow-retro-outset border border-os-white w-full max-w-[360px] p-1 text-black font-sans">
+              <div className="bg-[#000080] text-white font-bold text-xs px-2 py-1 flex items-center justify-between select-none">
+                <div className="flex items-center gap-1.5 truncate">
+                  <span>🌐</span>
+                  <span className="truncate">Deployment Status — {app.name}</span>
+                </div>
+                <span className="bg-os-gray text-black px-1 text-[10px] leading-none shadow-retro-outset font-bold">
+                  !
+                </span>
+              </div>
+
+              <div className="p-3 flex flex-col gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-os-white shadow-retro-inset border border-os-dark-gray flex items-center justify-center text-xl shrink-0">
+                    🔌
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-xs sm:text-sm text-black leading-tight">
+                      This Project Is Not Hosted Live
+                    </h3>
+                    <p className="text-[11px] text-os-dark-gray mt-1 leading-snug">
+                      A live web preview is not deployed for this build. You can inspect the source files above or open the repository links below.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-os-white shadow-retro-inset border border-os-dark-gray px-2 py-1 text-[10px] font-mono text-black flex items-center justify-between">
+                  <span>STATUS: OFFLINE_BUILD</span>
+                  <span className="text-red-700 font-bold">PORT: N/A</span>
+                </div>
+
+                <div className="flex flex-wrap justify-end gap-2 pt-1 border-t border-os-dark-gray">
+                  {app.frontend_repo && (
+                    <a
+                      href={app.frontend_repo}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => playSound('click')}
+                      className="retro-btn text-[11px] px-3 py-1 font-bold no-underline text-black"
+                    >
+                      Frontend Code
+                    </a>
+                  )}
+                  {app.backend_repo && (
+                    <a
+                      href={app.backend_repo}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => playSound('click')}
+                      className="retro-btn text-[11px] px-3 py-1 font-bold no-underline text-black"
+                    >
+                      Backend Code
+                    </a>
+                  )}
+                  {!app.frontend_repo && !app.backend_repo && (
+                    <span className="retro-btn text-[10px] px-3 py-1 opacity-60 text-os-dark-gray cursor-default">
+                      Source Private / Local
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
         )}
       </article>
     );
   };
 
   return (
-    <div 
+    <div
       className={`absolute inset-0 flex-col bg-os-gray shadow-retro-outset z-40 overflow-hidden ${isActive ? 'flex' : 'hidden'}`}
       onMouseDownCapture={onFocus}
       onTouchStartCapture={onFocus}
@@ -264,7 +423,7 @@ const MobileWindow = ({
           <img src={app.icon} alt="" className="w-4 h-4 object-contain" style={{ imageRendering: 'pixelated' }} />
           <span className="truncate">{app.name}</span>
         </div>
-        
+
         <div className="flex items-center gap-[2px]">
           <button onClick={(e) => { e.stopPropagation(); playSound('click'); onMinimize(); }} className="retro-btn w-6 h-5 flex items-center justify-center text-xs text-black bg-os-gray font-bold">_</button>
           <button onClick={(e) => { e.stopPropagation(); playSound('click'); onClose(); }} className="retro-btn w-6 h-5 flex items-center justify-center text-xs text-black bg-os-gray font-bold ml-1">X</button>
