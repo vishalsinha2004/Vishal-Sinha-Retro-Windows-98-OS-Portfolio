@@ -12,8 +12,8 @@ import { useLocalStorage } from './hooks/useLocalStorage';
 import { useSound } from './hooks/useSound';
 import { useIsMobile } from './hooks/useIsMobile';
 import MobileOS from './mobile/MobileOS';
-import { 
-  folderIcon, fileExplorerIcon, gamesFolderIcon, ticTacToeIcon, lumaAiIcon, sysMonitorIcon 
+import {
+  folderIcon, fileExplorerIcon, gamesFolderIcon, ticTacToeIcon, lumaAiIcon, sysMonitorIcon
 } from './utils/icons';
 
 import { useFileSystem } from './hooks/useFileSystem';
@@ -25,8 +25,8 @@ function App() {
   const [bootState, setBootState] = useState(0);
   const [bootText, setBootText] = useState([]);
   const fsApi = useFileSystem(systemApps);
-  
-  const isMobile = useIsMobile(); 
+
+  const isMobile = useIsMobile();
 
   // -- SHUTDOWN MODAL STATES --
   const [showShutdown, setShowShutdown] = useState(false);
@@ -138,6 +138,14 @@ function App() {
       { id: 'system-monitor', name: 'System Monitor', icon: sysMonitorIcon, isSystemTool: true },
       { id: 'about-us', name: 'About Vishal', icon: "https://cdn.jsdelivr.net/gh/trapd00r/win95-winxp_icons@master/icons/w98_users.ico" },
       { id: 'resume', name: 'Resume', icon: "https://cdn.jsdelivr.net/gh/trapd00r/win95-winxp_icons@master/icons/w2k_text_file.ico" },
+      {
+        id: 'experience-folder',
+        name: 'Experience',
+        icon: folderIcon,
+        position: { x: 20, y: 420 },
+        isMinimized: false,
+        isMaximized: false,
+      },
       { id: 'file-explorer', name: 'File Explorer', icon: fileExplorerIcon },
       { id: 'projects-folder', name: 'Projects', icon: folderIcon },
       { id: 'games-folder', name: 'Games', icon: gamesFolderIcon },
@@ -162,11 +170,11 @@ function App() {
           backend_repo: item.backend_repo,
           live_link: item.live_link,
           project_type: item.project_type,
-          isProject: true 
+          isProject: true
         }));
 
         setSystemApps([
-          ...staticFallbackApps.filter(app => app.id !== 'settings'), 
+          ...staticFallbackApps.filter(app => app.id !== 'settings'),
           ...formattedApps,
           { id: 'settings', name: 'Control Panel', icon: "https://cdn.jsdelivr.net/gh/trapd00r/win95-winxp_icons@master/icons/w98_directory_control_panel.ico" }
         ]);
@@ -179,16 +187,14 @@ function App() {
 
   // --- URL ROUTING FIX ---
   useEffect(() => {
-    // Wait for the OS to fully boot (bootState === 3) before opening deep-linked apps
     if (bootState === 3 && systemApps.length > 0) {
       const searchParams = new URLSearchParams(window.location.search);
       const appToOpen = searchParams.get('app');
-      
+
       if (appToOpen) {
-        // Find the app object in your systemApps array
         const targetApp = systemApps.find(a => a.id === appToOpen);
         if (targetApp) {
-          openApp(targetApp); // Pass the full object to the window manager, not just the ID
+          openApp(targetApp);
         }
       }
     }
@@ -198,7 +204,7 @@ function App() {
     setShowShutdown(false);
     if (shutdownChoice === 'logoff') {
       sessionStorage.removeItem('vishal_os_splash_seen');
-      setBootState(1); 
+      setBootState(1);
     } else if (shutdownChoice === 'restart') {
       playSound('shutdown');
       sessionStorage.removeItem('vishal_os_splash_seen');
@@ -208,12 +214,12 @@ function App() {
       }, 2000);
     } else if (shutdownChoice === 'shutdown') {
       playSound('shutdown');
-      setTimeout(() => setBootState(4), 1000); 
+      setTimeout(() => setBootState(4), 1000);
     }
   };
 
   return (
-<div
+    <div
       className="relative h-[100dvh] w-full text-os-text overflow-hidden flex flex-col font-sans select-none"
       style={{ backgroundColor: bgTheme }}
       onClick={() => isStartMenuOpen && setIsStartMenuOpen(false)}
@@ -235,9 +241,9 @@ function App() {
 
       {/* --- STATE 1: SMART 90s SPLASH SCREEN --- */}
       {bootState === 1 && (
-        <SplashScreen 
-          apiUrl={API_BASE_URL} 
-          onComplete={() => setBootState(3)} 
+        <SplashScreen
+          apiUrl={API_BASE_URL}
+          onComplete={() => setBootState(3)}
         />
       )}
 
@@ -268,10 +274,11 @@ function App() {
         <>
           <SystemDialog />
 
+          {/* FIXED: Added 'experience-folder' here so it renders on Desktop */}
           <Desktop
             systemApps={systemApps.filter(app => [
               'system-os', 'network', 'recycle-bin', 'ie', 'notepad', 'paint', 'system-monitor', 'problem-solver', 'luma-ai', 'about-us', 'resume', 'file-explorer',
-              'projects-folder', 'games-folder', 'settings'
+              'projects-folder', 'experience-folder', 'games-folder', 'settings'
             ].includes(app.id))}
             onOpenApp={(id) => openApp(systemApps.find(a => a.id === id))}
           />

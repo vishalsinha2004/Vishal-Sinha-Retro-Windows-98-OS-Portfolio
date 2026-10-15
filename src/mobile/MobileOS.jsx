@@ -6,7 +6,7 @@ import MobileTaskbar from './MobileTaskbar';
 import MobileStartMenu from './MobileStartMenu';
 import MobileWindow from './MobileWindow';
 import MobileWindowSwitcher from './MobileWindowSwitcher';
-import MobileSearch from './MobileSearch'; 
+import MobileSearch from './MobileSearch';
 
 const MobileOS = ({
   systemApps,
@@ -27,28 +27,28 @@ const MobileOS = ({
   onShutDown,
   onLogOff
 }) => {
-  
+
   const [isStartMenuOpen, setIsStartMenuOpen] = useState(false);
   const [isWindowSwitcherOpen, setIsWindowSwitcherOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const desktopShortcuts = systemApps.filter(app => [
-    'system-os', 'network', 'recycle-bin', 'ie', 'notepad', 'paint', 'system-monitor', 
+    'system-os', 'network', 'recycle-bin', 'ie', 'notepad', 'paint', 'system-monitor',
     'problem-solver', 'luma-ai', 'about-us', 'resume', 'file-explorer',
-    'projects-folder', 'games-folder', 'settings'
+    'projects-folder', 'experience-folder', 'games-folder', 'settings'
   ].includes(app.id));
 
   return (
     <div className="mobile-os z-10 font-sans relative" style={{ backgroundColor: bgTheme }}>
       <MobileStatusBar />
       <SystemDialog />
-      
+
       {/* min-h-0 strictly forces this flex-container to stay inside the viewport bounds */}
       <div className="flex-1 relative overflow-hidden flex flex-col min-h-0 w-full">
-        <MobileHome 
-          systemApps={desktopShortcuts} 
-          onOpenApp={openApp} 
-          playSound={playSound} 
+        <MobileHome
+          systemApps={desktopShortcuts}
+          onOpenApp={openApp}
+          playSound={playSound}
         />
 
         {openApps.map((app) => (
@@ -94,14 +94,14 @@ const MobileOS = ({
       )}
 
       {isSearchOpen && (
-        <MobileSearch 
+        <MobileSearch
           systemApps={systemApps}
           onOpenApp={openApp}
           closeSearch={() => setIsSearchOpen(false)}
         />
       )}
 
-      <MobileTaskbar 
+      <MobileTaskbar
         openApps={openApps}
         isStartMenuOpen={isStartMenuOpen}
         toggleStartMenu={(e) => {

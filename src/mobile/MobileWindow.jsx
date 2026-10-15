@@ -19,6 +19,7 @@ import MobileAboutMe from './MobileAboutMe';
 import MobileResume from './MobileResume';
 import MobileProjectPage from './MobileProjectPage';
 import { folderIcon, notepadIcon } from '../utils/icons';
+import MobileExperience from './MobileExperience';
 
 // In-memory cache so GitHub repos (and 404s) are never fetched repeatedly
 const repoCache = new Map();
@@ -132,7 +133,7 @@ const MobileWindow = ({
   // 2. Fetch GitHub files ONLY once per app/repo change
   useEffect(() => {
     const sysApps = [
-      'settings', 'system-os', 'about-us', 'projects-folder', 'games-folder',
+      'settings', 'system-os', 'about-us', 'projects-folder', 'experience-folder', 'games-folder',
       'file-explorer', 'resume', 'tic-tac-toe', 'problem-solver', 'snake',
       'minesweeper', 'paint', 'notepad', 'system-monitor', 'ie', 'network',
       'recycle-bin', 'recycle', 'luma-ai',
@@ -259,6 +260,9 @@ const MobileWindow = ({
     if (app.id === 'problem-solver' || app.name.toLowerCase() === 'ms-dos prompt') {
       return <MobileCommandPrompt onOpenApp={onOpenApp} onClose={onClose} systemApps={systemApps} fsApi={fsApi} />;
     }
+
+    // FIXED: Route 'experience-folder' to MobileExperience
+    if (app.id === 'experience-folder') return <MobileExperience />;
 
     if (app.id === 'games-folder') {
       const gameApps = systemApps.filter((a) => a.isGame);

@@ -21,7 +21,7 @@ import Notepad from './Notepad';
 import Paint from './Paint';
 import Minesweeper from './Minesweeper';
 import { showSystemDialog } from './SystemDialog';
-
+import Experience from './Experience';
 const desktopRepoCache = new Map();
 
 const getRepoDetails = (url) => {
@@ -261,6 +261,7 @@ const Window = ({
       const gameApps = systemApps.filter((a) => a.isGame);
       return <ProjectPage apps={gameApps} onOpenApp={onOpenApp} />;
     }
+    if (app.id === 'experience-folder') return <Experience />;
 
     if (app.id === 'projects-folder') {
       const projectApps = systemApps.filter((a) => a.isProject);

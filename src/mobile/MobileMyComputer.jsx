@@ -1,43 +1,83 @@
 import React from 'react';
 import { useSound } from '../hooks/useSound';
 import { showSystemDialog } from '../components/SystemDialog';
+import { 
+  floppyIcon, 
+  hardDriveIcon, 
+  cdIcon, 
+  settingsIcon, 
+  networkIcon, 
+  recycleBinIcon 
+} from '../utils/icons';
 
 const MobileMyComputer = ({ onOpenApp }) => {
   const { playSound } = useSound();
 
   const items = [
     { 
-      id: 'floppy', 
+      id: 'drive-a', 
       name: '3½ Floppy (A:)', 
-      icon: 'https://cdn.jsdelivr.net/gh/trapd00r/win95-winxp_icons@master/icons/w98_floppy_drive_3_12.ico', 
+      icon: floppyIcon, 
       action: () => { 
         playSound('error'); 
         showSystemDialog({ 
           type: 'error', 
-          title: 'My Computer', 
-          message: 'A:\\ is not accessible.\n\nThe device is not ready.', 
+          title: '3½ Floppy (A:)', 
+          message: '3½ Floppy (A:) is not accessible.\n\nThe device is not ready.', 
           buttons: ['OK'] 
         }); 
       } 
     },
     { 
-      id: 'c-drive', 
+      id: 'drive-c', 
       name: 'Local Disk (C:)', 
-      icon: 'https://cdn.jsdelivr.net/gh/trapd00r/win95-winxp_icons@master/icons/w98_hard_drive_windows.ico', 
+      icon: hardDriveIcon, 
       action: () => { 
         playSound('click'); 
         onOpenApp('file-explorer'); 
       } 
     },
     { 
-      id: 'control-panel', 
+      id: 'drive-d', 
+      name: 'CD-ROM (D:)', 
+      icon: cdIcon, 
+      action: () => { 
+        playSound('error'); 
+        showSystemDialog({ 
+          type: 'error', 
+          title: 'CD-ROM (D:)', 
+          message: 'CD-ROM (D:) is not accessible.\n\nThe device is not ready.', 
+          buttons: ['OK'] 
+        }); 
+      } 
+    },
+    { 
+      id: 'settings', 
       name: 'Control Panel', 
-      icon: 'https://cdn.jsdelivr.net/gh/trapd00r/win95-winxp_icons@master/icons/w98_directory_control_panel.ico', 
+      icon: settingsIcon, 
       action: () => { 
         playSound('click'); 
         onOpenApp('settings'); 
       } 
     },
+    { 
+      id: 'network', 
+      name: 'Network Neighborhood', 
+      icon: networkIcon, 
+      action: () => { 
+        playSound('click'); 
+        onOpenApp('network'); 
+      } 
+    },
+    { 
+      id: 'recycle', 
+      name: 'Recycle Bin', 
+      icon: recycleBinIcon, 
+      action: () => { 
+        playSound('click'); 
+        onOpenApp('recycle-bin'); 
+      } 
+    }
   ];
 
   return (
@@ -65,7 +105,12 @@ const MobileMyComputer = ({ onOpenApp }) => {
           >
             <div className="w-10 h-10 mb-1 flex items-center justify-center relative">
               <div className="absolute inset-0 bg-os-navy opacity-0 group-active:opacity-40 mix-blend-multiply pointer-events-none"></div>
-              <img src={item.icon} alt={item.name} className="w-8 h-8 object-contain pointer-events-none" style={{ imageRendering: 'pixelated' }} />
+              <img 
+                src={item.icon} 
+                alt={item.name} 
+                className="w-8 h-8 object-contain pointer-events-none" 
+                style={{ imageRendering: 'pixelated' }} 
+              />
             </div>
             <span className="text-xs text-center leading-tight font-sans text-black px-1 group-active:bg-os-navy group-active:text-white border border-transparent group-active:border-dotted group-active:border-white">
               {item.name}
