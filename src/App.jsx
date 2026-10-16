@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Desktop from './components/Desktop';
 import Taskbar from './components/Taskbar';
 import Window from './components/Window';
@@ -18,11 +18,65 @@ import {
 
 import { useFileSystem } from './hooks/useFileSystem';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+const SITE_URL = 'https://vishalos.netlify.app';
+
+// Clean URL path mapping for Google Sitelinks & SEO
+const SEO_ROUTES = {
+  '/projects': {
+    appId: 'projects-folder',
+    title: 'Projects | Vishal Sinha — Full Stack & AI Portfolio',
+    description: 'Explore Startup, Client, Final Semester, and Personal software projects built by Vishal Sinha using Python, Django, React.js, and AI/ML.'
+  },
+  '/experience': {
+    appId: 'experience-folder',
+    title: 'Experience | Vishal Sinha — Python AI/ML Internship',
+    description: 'View Vishal Sinha’s professional experience, including the Python AI/ML Internship at Techmicra IT Solutions, Ahmedabad and verified certificates.'
+  },
+  '/resume': {
+    appId: 'resume',
+    title: 'Resume / CV | Vishal Sinha — Full Stack Developer',
+    description: 'View and download the official Resume / CV of Vishal Sinha, Full Stack Web Developer and AI/ML Engineer.'
+  },
+  '/about': {
+    appId: 'about-us',
+    title: 'About Vishal Sinha | Full Stack Developer & AI/ML Engineer',
+    description: 'Learn about Vishal Sinha, a Full Stack Developer specializing in Python, Django, React.js, and Artificial Intelligence.'
+  },
+  '/luma-ai': {
+    appId: 'luma-ai',
+    title: 'LUMA.EXE Voice AI Assistant | Vishal OS 98',
+    description: 'Interact with LUMA.EXE, a retro voice and text AI assistant engineered by Vishal Sinha inside Vishal OS 98.'
+  },
+  '/games': {
+    appId: 'games-folder',
+    title: 'Retro Games | Vishal OS 98 Portfolio',
+    description: 'Play classic Windows 98 retro games including Minesweeper, Snake, and Tic Tac Toe inside Vishal OS 98.'
+  }
+};
+
+// Reverse map: app.id -> clean URL path
+const APP_ID_TO_PATH = Object.entries(SEO_ROUTES).reduce((acc, [path, cfg]) => {
+  acc[cfg.appId] = path;
+  return acc;
+}, {});
+
+// Detect search engine crawlers or direct deep links so they skip BIOS/Splash
+const shouldSkipBoot = () => {
+  if (typeof window === 'undefined') return true;
+  if (sessionStorage.getItem('vishal_os_splash_seen') === 'true') return true;
+
+  const ua = navigator.userAgent?.toLowerCase() || '';
+  const isBot = /bot|googlebot|crawler|spider|robot|crawling|lighthouse|inspect/i.test(ua);
+  const hasDeepPath = window.location.pathname && window.location.pathname !== '/';
+  const hasAppQuery = new URLSearchParams(window.location.search).has('app');
+
+  return isBot || hasDeepPath || hasAppQuery;
+};
 
 function App() {
   const [systemApps, setSystemApps] = useState([]);
   const [isStartMenuOpen, setIsStartMenuOpen] = useState(false);
-  const [bootState, setBootState] = useState(0);
+  const [bootState, setBootState] = useState(() => (shouldSkipBoot() ? 3 : 0));
   const [bootText, setBootText] = useState([]);
   const fsApi = useFileSystem(systemApps);
 
@@ -47,11 +101,65 @@ function App() {
     activeWindowId
   } = useWindowManager();
 
+  // Helper to update <title>, <meta name="description">, and canonical URL
+  const updateSeoMeta = useCallback((appObj) => {
+    const metaDesc = document.querySelector('meta[name="description"]');
+    const canonical = document.querySelector('link[rel="canonical"]');
+
+    if (!appObj) {
+      document.title = 'Vishal Sinha | Retro Windows 98 OS Portfolio — Full Stack & AI/ML Developer';
+      if (metaDesc) {
+        metaDesc.setAttribute(
+          'content',
+          'Explore the interactive Windows 98 OS portfolio of Vishal Sinha, a Full Stack Developer (Python, Django, React.js) & AI/ML Engineer. View Projects, Experience, Resume, and LUMA AI.'
+        );
+      }
+      if (canonical) canonical.setAttribute('href', `${SITE_URL}/`);
+      return;
+    }
+
+    const cleanPath = APP_ID_TO_PATH[appObj.id];
+    const routeSeo = cleanPath ? SEO_ROUTES[cleanPath] : null;
+
+    document.title = routeSeo ? routeSeo.title : `${appObj.name} | Vishal Sinha Portfolio`;
+    if (metaDesc) {
+      metaDesc.setAttribute(
+        'content',
+        routeSeo?.description || appObj.description || `Explore ${appObj.name} inside Vishal Sinha's Windows 98 OS Portfolio.`
+      );
+    }
+    if (canonical) {
+      const targetUrl = cleanPath ? `${SITE_URL}${cleanPath}` : `${SITE_URL}/?app=${appObj.id}`;
+      canonical.setAttribute('href', targetUrl);
+    }
+  }, []);
+
+  // Wrapper around openApp that also updates the browser URL for SEO
+  const handleOpenAppById = useCallback(
+    (idOrObj) => {
+      const targetApp =
+        typeof idOrObj === 'string'
+          ? systemApps.find((a) => a.id === idOrObj)
+          : idOrObj;
+
+      if (!targetApp) return;
+
+      openApp(targetApp);
+      updateSeoMeta(targetApp);
+
+      const cleanPath = APP_ID_TO_PATH[targetApp.id];
+      const nextUrl = cleanPath || `/?app=${targetApp.id}`;
+      if (window.location.pathname + window.location.search !== nextUrl) {
+        window.history.pushState({ appId: targetApp.id }, '', nextUrl);
+      }
+    },
+    [systemApps, openApp, updateSeoMeta]
+  );
+
   // --- BOOT SEQUENCE LOGIC ---
   useEffect(() => {
-    // Instantly skip to Desktop if session storage is already set
-    if (sessionStorage.getItem('vishal_os_splash_seen') === 'true') {
-      setBootState(3);
+    if (bootState === 3) {
+      sessionStorage.setItem('vishal_os_splash_seen', 'true');
       return;
     }
 
@@ -81,7 +189,7 @@ function App() {
     if (bootState === 0) {
       const interval = setInterval(() => {
         if (currentLine < biosLines.length) {
-          setBootText(prev => [...prev, biosLines[currentLine]]);
+          setBootText((prev) => [...prev, biosLines[currentLine]]);
           currentLine++;
         } else {
           clearInterval(interval);
@@ -154,6 +262,9 @@ function App() {
       { id: 'settings', name: 'Control Panel', icon: "https://cdn.jsdelivr.net/gh/trapd00r/win95-winxp_icons@master/icons/w98_directory_control_panel.ico" }
     ];
 
+    // Set static apps immediately so deep links (/projects, /resume, etc.) open without waiting for backend
+    setSystemApps(staticFallbackApps);
+
     fetch(`${API_BASE_URL}/system-apps/`)
       .then((res) => {
         if (!res.ok) throw new Error('Network response was not ok');
@@ -170,35 +281,48 @@ function App() {
           backend_repo: item.backend_repo,
           live_link: item.live_link,
           project_type: item.project_type,
+          order: item.order,
           isProject: true
         }));
 
         setSystemApps([
-          ...staticFallbackApps.filter(app => app.id !== 'settings'),
+          ...staticFallbackApps.filter((app) => app.id !== 'settings'),
           ...formattedApps,
           { id: 'settings', name: 'Control Panel', icon: "https://cdn.jsdelivr.net/gh/trapd00r/win95-winxp_icons@master/icons/w98_directory_control_panel.ico" }
         ]);
       })
       .catch((err) => {
         console.error('Failed to load dynamic apps from backend:', err);
-        setSystemApps(staticFallbackApps);
       });
   }, []);
 
-  // --- URL ROUTING FIX ---
+  // --- CLEAN URL & QUERY PARAMETER ROUTING (FOR SITELINKS & BACK/FORWARD BUTTONS) ---
   useEffect(() => {
-    if (bootState === 3 && systemApps.length > 0) {
-      const searchParams = new URLSearchParams(window.location.search);
-      const appToOpen = searchParams.get('app');
+    if (bootState !== 3 || systemApps.length === 0) return;
 
-      if (appToOpen) {
-        const targetApp = systemApps.find(a => a.id === appToOpen);
+    const resolveUrlToApp = () => {
+      const normalizedPath = window.location.pathname.replace(/\/+$/, '') || '/';
+      const searchParams = new URLSearchParams(window.location.search);
+      const queryAppId = searchParams.get('app');
+
+      const matchedRoute = SEO_ROUTES[normalizedPath];
+      const appIdToOpen = matchedRoute ? matchedRoute.appId : queryAppId;
+
+      if (appIdToOpen) {
+        const targetApp = systemApps.find((a) => a.id === appIdToOpen);
         if (targetApp) {
           openApp(targetApp);
+          updateSeoMeta(targetApp);
         }
+      } else {
+        updateSeoMeta(null);
       }
-    }
-  }, [bootState, systemApps, openApp]);
+    };
+
+    resolveUrlToApp();
+    window.addEventListener('popstate', resolveUrlToApp);
+    return () => window.removeEventListener('popstate', resolveUrlToApp);
+  }, [bootState, systemApps, openApp, updateSeoMeta]);
 
   const confirmShutdown = () => {
     setShowShutdown(false);
@@ -224,6 +348,16 @@ function App() {
       style={{ backgroundColor: bgTheme }}
       onClick={() => isStartMenuOpen && setIsStartMenuOpen(false)}
     >
+      {/* Semantic Crawlable Sitelinks Navigation for Googlebot */}
+      <nav aria-label="Primary Portfolio Navigation" className="sr-only">
+        <a href="/projects" onClick={(e) => { e.preventDefault(); handleOpenAppById('projects-folder'); }}>Projects</a>
+        <a href="/experience" onClick={(e) => { e.preventDefault(); handleOpenAppById('experience-folder'); }}>Experience</a>
+        <a href="/resume" onClick={(e) => { e.preventDefault(); handleOpenAppById('resume'); }}>Resume</a>
+        <a href="/about" onClick={(e) => { e.preventDefault(); handleOpenAppById('about-us'); }}>About Vishal</a>
+        <a href="/luma-ai" onClick={(e) => { e.preventDefault(); handleOpenAppById('luma-ai'); }}>LUMA.EXE AI Assistant</a>
+        <a href="/games" onClick={(e) => { e.preventDefault(); handleOpenAppById('games-folder'); }}>Games</a>
+      </nav>
+
       {isCrtMode && <div className="crt-overlay pointer-events-none z-[10001]"></div>}
 
       {/* --- STATE 0: BIOS SCREEN --- */}
@@ -254,7 +388,7 @@ function App() {
           openApps={openApps}
           activeWindowId={activeWindowId}
           fsApi={fsApi}
-          openApp={(id) => openApp(systemApps.find(a => a.id === id))}
+          openApp={handleOpenAppById}
           closeApp={closeApp}
           focusWindow={focusWindow}
           minimizeWindow={minimizeWindow}
@@ -274,13 +408,12 @@ function App() {
         <>
           <SystemDialog />
 
-          {/* FIXED: Added 'experience-folder' here so it renders on Desktop */}
           <Desktop
-            systemApps={systemApps.filter(app => [
+            systemApps={systemApps.filter((app) => [
               'system-os', 'network', 'recycle-bin', 'ie', 'notepad', 'paint', 'system-monitor', 'problem-solver', 'luma-ai', 'about-us', 'resume', 'file-explorer',
               'projects-folder', 'experience-folder', 'games-folder', 'settings'
             ].includes(app.id))}
-            onOpenApp={(id) => openApp(systemApps.find(a => a.id === id))}
+            onOpenApp={handleOpenAppById}
           />
 
           {openApps.map((app) => (
@@ -291,7 +424,7 @@ function App() {
               isActive={activeWindowId === app.id}
               onClose={() => closeApp(app.id)}
               onCloseApp={closeApp}
-              onOpenApp={(id) => openApp(systemApps.find(a => a.id === id))}
+              onOpenApp={handleOpenAppById}
               systemApps={systemApps}
               onFocus={() => focusWindow(app.id)}
               onMinimize={() => minimizeWindow(app.id)}
@@ -346,8 +479,8 @@ function App() {
           {isStartMenuOpen && (
             <div onClick={(e) => e.stopPropagation()}>
               <StartMenu
-                systemApps={systemApps.filter(app => !['settings'].includes(app.id))}
-                onOpenApp={(id) => { openApp(systemApps.find(a => a.id === id)); setIsStartMenuOpen(false); }}
+                systemApps={systemApps.filter((app) => !['settings'].includes(app.id))}
+                onOpenApp={(id) => { handleOpenAppById(id); setIsStartMenuOpen(false); }}
                 closeMenu={() => setIsStartMenuOpen(false)}
                 onShutDown={() => { setShutdownChoice('shutdown'); setShowShutdown(true); }}
                 onLogOff={() => { setShutdownChoice('logoff'); setShowShutdown(true); }}
@@ -355,13 +488,13 @@ function App() {
             </div>
           )}
 
-          <TopSearch systemApps={systemApps} onOpenApp={(id) => openApp(systemApps.find(a => a.id === id))} />
+          <TopSearch systemApps={systemApps} onOpenApp={handleOpenAppById} />
 
           <Taskbar
             openApps={openApps}
             activeWindowId={activeWindowId}
             onCloseApp={closeApp}
-            onOpenApp={(id) => openApp(systemApps.find(a => a.id === id))}
+            onOpenApp={handleOpenAppById}
             onMinimizeApp={minimizeWindow}
             onFocusApp={focusWindow}
             isStartMenuOpen={isStartMenuOpen}

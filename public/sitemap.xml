@@ -1,40 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <!-- The Main Desktop -->
   <url>
     <loc>https://vishalos.netlify.app/</loc>
+    <lastmod>2026-10-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
-  
-  <!-- Specific OS Applications (Now indexable via Query Params) -->
   <url>
-    <loc>https://vishalos.netlify.app/?app=about-us</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  
-  <url>
-    <loc>https://vishalos.netlify.app/?app=resume</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  
-  <url>
-    <loc>https://vishalos.netlify.app/?app=projects-folder</loc>
+    <loc>https://vishalos.netlify.app/projects</loc>
+    <lastmod>2026-10-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
-  
   <url>
-    <loc>https://vishalos.netlify.app/?app=games-folder</loc>
+    <loc>https://vishalos.netlify.app/experience</loc>
+    <lastmod>2026-10-16</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.9</priority>
   </url>
-
   <url>
-    <loc>https://vishalos.netlify.app/?app=system-os</loc>
+    <loc>https://vishalos.netlify.app/resume</loc>
+    <lastmod>2026-10-16</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://vishalos.netlify.app/about</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://vishalos.netlify.app/luma-ai</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
   </url>
 </urlset>

@@ -1,75 +1,128 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image" href="/OS.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#008080" />
-    
+
     <!-- GOOGLE SEARCH CONSOLE VERIFICATION -->
     <meta name="google-site-verification" content="TH7ufMMvSLYqV4tjqE775XAm1WTTmRA4P0_qq_ZQXkk" />
 
-    <!-- Expanded Search Engine Optimization (SEO) Meta Tags -->
-    <title>Vishal Sinha | Retro Windows 98 OS Portfolio</title>
-    <meta name="description" content="Explore the interactive Windows 98-themed portfolio of Vishal Sinha, a Full-Stack Software Developer. Access My Computer, Desktop, Games, About Me, and AI/ML Projects directly inside a nostalgic 90s operating system." />
-    <meta name="keywords" content="Vishal Sinha, Windows 98 portfolio, Retro OS design, My Computer, Desktop, Projects and Apps, Games, MarkAI, AI/ML Engineer, Full-Stack Developer, React, Django" />
+    <!-- Primary SEO Meta Tags -->
+    <title>Vishal Sinha | Retro Windows 98 OS Portfolio — Full Stack & AI/ML Developer</title>
+    <meta name="title" content="Vishal Sinha | Retro Windows 98 OS Portfolio — Full Stack & AI/ML Developer" />
+    <meta name="description" content="Explore the interactive Windows 98 OS portfolio of Vishal Sinha, a Full Stack Developer (Python, Django, React.js) & AI/ML Engineer. View Projects, Experience, Resume, and LUMA AI." />
+    <meta name="keywords" content="Vishal Sinha, Vishal OS 98, Full Stack Developer, Python Django Developer, React Developer, AI ML Engineer, Vishal Sinha Portfolio, Shreyarth University" />
     <meta name="author" content="Vishal Sinha" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://vishalos.netlify.app/" id="canonical-link" />
 
-    <!-- Open Graph / Social Media Preview Tags -->
+    <!-- Favicon & App Icons -->
+    <link rel="icon" type="image/png" href="/OS.png" />
+    <link rel="apple-touch-icon" href="/OS.png" />
+
+    <!-- Open Graph / Facebook (Fixes "Netlify" site title in Google Search) -->
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Vishal Sinha | Vishal OS 98" />
     <meta property="og:url" content="https://vishalos.netlify.app/" />
-    <meta property="og:title" content="Vishal Sinha | Interactive Retro OS Portfolio" />
-    <meta property="og:description" content="Boot up my interactive Windows 98 portfolio. Browse my Desktop, My Computer, AI Projects, and Games in a fully functional 90s web OS." />
-    <meta property="og:image" content="https://vishalos.netlify.app/og-image.png" />
+    <meta property="og:title" content="Vishal Sinha | Retro Windows 98 OS Portfolio" />
+    <meta property="og:description" content="Interactive Windows 98-themed portfolio of Vishal Sinha, Full Stack & AI/ML Developer. Explore Projects, Experience, Resume, and LUMA AI." />
+    <meta property="og:image" content="https://vishalos.netlify.app/OS.png" />
 
-    <!-- Twitter / X Preview Tags -->
+    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Vishal Sinha | Interactive Retro OS Portfolio" />
-    <meta name="twitter:description" content="Boot up my interactive Windows 98 portfolio. Browse my Desktop, My Computer, AI Projects, and Games in a fully functional 90s web OS." />
-    <meta name="twitter:image" content="https://vishalos.netlify.app/og-image.png" />
+    <meta name="twitter:url" content="https://vishalos.netlify.app/" />
+    <meta name="twitter:title" content="Vishal Sinha | Retro Windows 98 OS Portfolio" />
+    <meta name="twitter:description" content="Interactive Windows 98-themed portfolio of Vishal Sinha, Full Stack & AI/ML Developer." />
+    <meta name="twitter:image" content="https://vishalos.netlify.app/OS.png" />
 
-    <!-- Google Knowledge Graph & Portfolio Structured Data -->
+    <!-- Structured Data: WebSite, Person & SiteNavigationElement for Google Sitelinks -->
     <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@graph": [
-        {
-          "@type": "Person",
-          "name": "Vishal Sinha",
-          "url": "https://vishalos.netlify.app/",
-          "jobTitle": "Full-Stack Software Developer & AI/ML Engineer",
-          "alumniOf": {
-            "@type": "CollegeOrUniversity",
-            "name": "Shreyarth University"
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://vishalos.netlify.app/#website",
+            "name": "Vishal Sinha | Vishal OS 98",
+            "alternateName": ["Vishal Sinha Portfolio", "Vishal OS", "Vishal OS 98"],
+            "url": "https://vishalos.netlify.app/"
           },
-          "worksFor": {
-            "@type": "Organization",
-            "name": "Techmicra IT Solutions"
+          {
+            "@type": "Person",
+            "@id": "https://vishalos.netlify.app/#person",
+            "name": "Vishal Sinha",
+            "url": "https://vishalos.netlify.app/",
+            "jobTitle": "Full Stack Developer & AI/ML Engineer",
+            "alumniOf": {
+              "@type": "CollegeOrUniversity",
+              "name": "Shreyarth University"
+            },
+            "sameAs": [
+              "https://github.com/vishalsinha2004"
+            ]
           },
-          "sameAs": [
-            "https://github.com/vishalsinha2004",
-            "https://www.linkedin.com/in/vishal-sinha2004/",
-            "https://x.com/vishalsinha369"
-          ]
-        },
-        {
-          "@type": "WebSite",
-          "url": "https://vishalos.netlify.app/",
-          "name": "Vishal OS 98",
-          "description": "An interactive retro operating system portfolio.",
-          "hasPart": [
-            { "@type": "WebPage", "name": "About Vishal", "url": "https://vishalos.netlify.app/?app=about-us" },
-            { "@type": "WebPage", "name": "My Computer", "url": "https://vishalos.netlify.app/?app=system-os" },
-            { "@type": "WebPage", "name": "Projects and Apps", "url": "https://vishalos.netlify.app/?app=projects-folder" },
-            { "@type": "WebPage", "name": "Games", "url": "https://vishalos.netlify.app/?app=games-folder" }
-          ]
-        }
-      ]
-    }
+          {
+            "@type": "ItemList",
+            "name": "Vishal OS Main Navigation",
+            "itemListElement": [
+              {
+                "@type": "SiteNavigationElement",
+                "position": 1,
+                "name": "Projects",
+                "description": "Explore Startup, Client, Final Semester, and Personal full-stack & AI projects built by Vishal Sinha.",
+                "url": "https://vishalos.netlify.app/projects"
+              },
+              {
+                "@type": "SiteNavigationElement",
+                "position": 2,
+                "name": "Experience",
+                "description": "Python AI/ML Internship at Techmicra IT Solutions, Ahmedabad and verified certificates.",
+                "url": "https://vishalos.netlify.app/experience"
+              },
+              {
+                "@type": "SiteNavigationElement",
+                "position": 3,
+                "name": "Resume",
+                "description": "View and download Vishal Sinha's official Full Stack & AI/ML Developer Resume / CV.",
+                "url": "https://vishalos.netlify.app/resume"
+              },
+              {
+                "@type": "SiteNavigationElement",
+                "position": 4,
+                "name": "About Vishal",
+                "description": "Learn about Vishal Sinha's background, technical stack, and software engineering journey.",
+                "url": "https://vishalos.netlify.app/about"
+              },
+              {
+                "@type": "SiteNavigationElement",
+                "position": 5,
+                "name": "LUMA.EXE AI Assistant",
+                "description": "Interact with LUMA.EXE, a retro voice and text AI assistant integrated into Vishal OS 98.",
+                "url": "https://vishalos.netlify.app/luma-ai"
+              }
+            ]
+          }
+        ]
+      }
     </script>
   </head>
   <body>
     <div id="root"></div>
+
+    <!-- Crawlable Fallback Navigation for Search Engine Bots -->
+    <noscript>
+      <nav aria-label="Vishal Sinha Portfolio Sitelinks">
+        <h1>Vishal Sinha | Retro Windows 98 OS Portfolio</h1>
+        <ul>
+          <li><a href="https://vishalos.netlify.app/projects">Projects — Full Stack & AI Applications</a></li>
+          <li><a href="https://vishalos.netlify.app/experience">Experience — Python AI/ML Internship</a></li>
+          <li><a href="https://vishalos.netlify.app/resume">Resume — Curriculum Vitae (PDF)</a></li>
+          <li><a href="https://vishalos.netlify.app/about">About Vishal Sinha</a></li>
+          <li><a href="https://vishalos.netlify.app/luma-ai">LUMA.EXE Voice AI Assistant</a></li>
+        </ul>
+      </nav>
+    </noscript>
+
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
